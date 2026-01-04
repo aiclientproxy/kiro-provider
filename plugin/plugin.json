@@ -1,6 +1,6 @@
 {
   "name": "kiro-provider",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Kiro (AWS CodeWhisperer) OAuth Provider - 支持 Claude 模型",
   "author": "ProxyCast Team",
   "homepage": "https://github.com/aiclientproxy/kiro-provider",
@@ -49,18 +49,7 @@
 
   "ui": {
     "surfaces": ["oauth_providers"],
-    "icon": "Cloud",
-    "title": "Kiro Provider",
     "entry": "dist/index.js",
-    "styles": "dist/styles.css",
-    "default_width": 900,
-    "default_height": 700,
-    "permissions": [
-      "database:read",
-      "database:write",
-      "http:request",
-      "crypto:encrypt",
-      "shell:open"
-    ]
+    "styles": "dist/styles.css"
   }
 }
