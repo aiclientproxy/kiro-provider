@@ -1,0 +1,66 @@
+{
+  "name": "kiro-provider",
+  "version": "1.0.0",
+  "description": "Kiro (AWS CodeWhisperer) OAuth Provider - 支持 Claude 模型",
+  "author": "ProxyCast Team",
+  "homepage": "https://github.com/aiclientproxy/kiro-provider",
+  "license": "MIT",
+
+  "plugin_type": "oauth_provider",
+  "entry": "kiro-provider-cli",
+  "min_proxycast_version": "1.0.0",
+
+  "provider": {
+    "id": "kiro",
+    "display_name": "Kiro (CodeWhisperer)",
+    "target_protocol": "anthropic",
+    "supported_models": ["claude-*"],
+    "auth_types": ["oauth"],
+    "credential_schemas": {
+      "oauth": {
+        "type": "object",
+        "properties": {
+          "accessToken": { "type": "string", "title": "Access Token" },
+          "refreshToken": { "type": "string", "title": "Refresh Token" },
+          "profileArn": { "type": "string", "title": "Profile ARN" },
+          "clientId": { "type": "string", "title": "Client ID" },
+          "clientSecret": { "type": "string", "title": "Client Secret" },
+          "region": { "type": "string", "default": "us-east-1" },
+          "authMethod": { "type": "string", "enum": ["social", "idc"] }
+        },
+        "required": ["refreshToken"]
+      }
+    }
+  },
+
+  "binary": {
+    "binary_name": "kiro-provider-cli",
+    "github_owner": "aiclientproxy",
+    "github_repo": "kiro-provider",
+    "platform_binaries": {
+      "macos-arm64": "kiro-provider-aarch64-apple-darwin",
+      "macos-x64": "kiro-provider-x86_64-apple-darwin",
+      "linux-x64": "kiro-provider-x86_64-unknown-linux-gnu",
+      "linux-arm64": "kiro-provider-aarch64-unknown-linux-gnu",
+      "windows-x64": "kiro-provider-x86_64-pc-windows-msvc.exe"
+    },
+    "checksum_file": "checksums.txt"
+  },
+
+  "ui": {
+    "surfaces": ["oauth_providers"],
+    "icon": "Cloud",
+    "title": "Kiro Provider",
+    "entry": "dist/index.js",
+    "styles": "dist/styles.css",
+    "default_width": 900,
+    "default_height": 700,
+    "permissions": [
+      "database:read",
+      "database:write",
+      "http:request",
+      "crypto:encrypt",
+      "shell:open"
+    ]
+  }
+}

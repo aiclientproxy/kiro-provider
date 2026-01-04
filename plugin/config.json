@@ -1,0 +1,22 @@
+{
+  "enabled": true,
+  "timeout_ms": 60000,
+  "settings": {
+    "risk_control": {
+      "machine_id_rotation": true,
+      "version_spoofing": true,
+      "fingerprint_isolation": true,
+      "hour_slot_variation": true
+    },
+    "token_refresh": {
+      "auto_refresh": true,
+      "refresh_threshold_minutes": 5,
+      "max_retry": 3
+    },
+    "health_check": {
+      "enabled": true,
+      "interval_seconds": 300,
+      "unhealthy_threshold": 3
+    }
+  }
+}
