@@ -11,8 +11,8 @@ import {
   usageApi,
   type KiroFingerprintInfo,
   type UsageInfo,
+  type SwitchToLocalResult,
 } from "@proxycast/plugin-components";
-import type { SwitchToLocalResult } from "../components/CredentialCard/types";
 
 interface UseCredentialActionsProps {
   credentialUuid: string;
@@ -200,8 +200,6 @@ export function useCredentialActions({
       setSwitchResult({
         success: false,
         message: e instanceof Error ? e.message : String(e),
-        requires_action: false,
-        requires_kiro_restart: false,
       });
     } finally {
       setSwitchingToLocal(false);

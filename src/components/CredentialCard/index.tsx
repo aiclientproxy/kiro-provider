@@ -28,8 +28,8 @@ export function CredentialCard({
   isLocalActive,
   onSwitchToLocal,
 }: CredentialCardProps) {
-  const isHealthy = credential.is_healthy && !credential.is_disabled;
-  const isOAuth = credential.credential_type.includes("oauth");
+  const isHealthy = (credential.is_healthy ?? false) && !credential.is_disabled;
+  const isOAuth = (credential.credential_type || "").includes("oauth");
 
   // 使用 hook 管理所有 Kiro 特有的状态和操作
   const {

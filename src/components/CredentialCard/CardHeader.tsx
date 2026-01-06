@@ -38,8 +38,8 @@ function getCredentialTypeLabel(type: string): string {
 /**
  * 获取来源标签配置
  */
-function getSourceConfig(source: CredentialSource): SourceConfig {
-  const configs: Record<CredentialSource, SourceConfig> = {
+function getSourceConfig(source?: CredentialSource): SourceConfig {
+  const configs: Partial<Record<CredentialSource, SourceConfig>> = {
     manual: {
       text: "手动添加",
       color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
@@ -52,25 +52,39 @@ function getSourceConfig(source: CredentialSource): SourceConfig {
       text: "私有",
       color: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
     },
+    local: {
+      text: "本地",
+      color: "bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400",
+    },
+    remote: {
+      text: "远程",
+      color: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400",
+    },
   };
-  return configs[source] || configs.manual;
+  const defaultConfig: SourceConfig = {
+    text: "手动添加",
+    color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+  };
+  return (source && configs[source]) || defaultConfig;
 }
 
 /**
  * 获取来源图标
  */
-function getSourceIcon(source: CredentialSource) {
-  const icons: Record<CredentialSource, React.ComponentType<{ className?: string }>> = {
+function getSourceIcon(source?: CredentialSource) {
+  const icons: Partial<Record<CredentialSource, React.ComponentType<{ className?: string }>>> = {
     manual: User,
     imported: Upload,
     private: Lock,
+    local: User,
+    remote: Globe,
   };
-  return icons[source] || User;
+  return (source && icons[source]) || User;
 }
 
 export function CardHeader({ credential, isHealthy, isLocalActive }: CardHeaderProps) {
-  const sourceConfig = getSourceConfig(credential.source || "manual");
-  const SourceIcon = getSourceIcon(credential.source || "manual");
+  const sourceConfig = getSourceConfig(credential.source);
+  const SourceIcon = getSourceIcon(credential.source);
 
   return (
     <div className="flex items-center gap-4">
@@ -101,7 +115,7 @@ export function CardHeader({ credential, isHealthy, isLocalActive }: CardHeaderP
         </h4>
         <div className="flex flex-wrap items-center gap-2 mt-1.5">
           <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium">
-            {getCredentialTypeLabel(credential.credential_type)}
+            {getCredentialTypeLabel(credential.credential_type || "unknown")}
           </span>
           <span
             className={cn(

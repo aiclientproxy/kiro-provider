@@ -31,8 +31,8 @@ export interface SourceConfig {
 export interface SwitchToLocalResult {
   success: boolean;
   message: string;
-  requires_action: boolean;
-  requires_kiro_restart: boolean;
+  requires_action?: boolean;
+  requires_kiro_restart?: boolean;
 }
 
 /**
@@ -40,7 +40,7 @@ export interface SwitchToLocalResult {
  */
 export interface CardHeaderProps {
   credential: CredentialDisplay;
-  isHealthy: boolean;
+  isHealthy?: boolean;
   isLocalActive?: boolean;
 }
 

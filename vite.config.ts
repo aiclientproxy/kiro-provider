@@ -1,6 +1,12 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import fs from 'fs';
+
+// 检查是否在 CI 环境或主应用组件库是否存在
+const isCI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
+const proxycastComponentsPath = path.resolve(__dirname, '../proxycast/src/lib/plugin-components');
+const hasLocalComponents = fs.existsSync(proxycastComponentsPath);
 
 export default defineConfig({
   plugins: [react()],
@@ -11,11 +17,11 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
-      // 指向主应用的组件库（开发时）
-      '@proxycast/plugin-components': path.resolve(
-        __dirname,
-        '../proxycast/src/lib/plugin-components'
-      ),
+      // 仅在本地开发且主应用存在时使用 alias
+      // CI 环境使用类型声明文件，运行时从全局变量获取
+      ...(hasLocalComponents && !isCI ? {
+        '@proxycast/plugin-components': proxycastComponentsPath,
+      } : {}),
     },
   },
   build: {
