@@ -41,6 +41,23 @@ pub struct UserInputMessage {
     pub content: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub user_input_message_context: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub images: Option<Vec<CWImage>>,
+}
+
+/// CodeWhisperer 图片结构
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CWImage {
+    pub format: String,
+    pub source: CWImageSource,
+}
+
+/// CodeWhisperer 图片来源
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CWImageSource {
+    pub bytes: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -61,6 +78,46 @@ pub struct ResponseStyle {
     pub system_prompt_user_customization: Option<String>,
 }
 
+/// 从 media_type 提取图片格式
+/// 例如: "image/jpeg" -> "jpeg", "image/png" -> "png"
+fn extract_image_format(media_type: &str) -> String {
+    media_type
+        .split('/')
+        .nth(1)
+        .unwrap_or("jpeg")
+        .to_string()
+}
+
+/// 从消息内容中提取图片
+fn extract_images_from_content(content: &Value) -> Vec<CWImage> {
+    let mut images = Vec::new();
+
+    if let Some(arr) = content.as_array() {
+        for item in arr {
+            if item["type"].as_str() == Some("image") {
+                // Anthropic 格式: { "type": "image", "source": { "type": "base64", "media_type": "image/jpeg", "data": "..." } }
+                if let Some(source) = item.get("source") {
+                    if source["type"].as_str() == Some("base64") {
+                        if let (Some(media_type), Some(data)) = (
+                            source["media_type"].as_str(),
+                            source["data"].as_str(),
+                        ) {
+                            images.push(CWImage {
+                                format: extract_image_format(media_type),
+                                source: CWImageSource {
+                                    bytes: data.to_string(),
+                                },
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    images
+}
+
 /// 将 Anthropic 请求转换为 CodeWhisperer 格式
 pub fn convert_anthropic_to_codewhisperer(
     request: &Value,
@@ -74,37 +131,44 @@ pub fn convert_anthropic_to_codewhisperer(
 
     // 提取消息内容
     let messages = request["messages"].as_array();
-    let content = if let Some(msgs) = messages {
-        // 获取最后一条用户消息
+
+    // 获取最后一条用户消息
+    let last_user_message = messages.and_then(|msgs| {
         msgs.iter()
             .filter(|m| m["role"].as_str() == Some("user"))
             .last()
-            .and_then(|m| {
-                // 处理 content 可能是字符串或数组的情况
-                if let Some(s) = m["content"].as_str() {
-                    Some(s.to_string())
-                } else if let Some(arr) = m["content"].as_array() {
-                    // 提取文本内容
-                    Some(
-                        arr.iter()
-                            .filter_map(|c| {
-                                if c["type"].as_str() == Some("text") {
-                                    c["text"].as_str().map(String::from)
-                                } else {
-                                    None
-                                }
-                            })
-                            .collect::<Vec<_>>()
-                            .join("\n"),
-                    )
-                } else {
-                    None
-                }
-            })
-            .unwrap_or_default()
-    } else {
-        String::new()
-    };
+    });
+
+    // 提取文本内容
+    let content = last_user_message
+        .and_then(|m| {
+            // 处理 content 可能是字符串或数组的情况
+            if let Some(s) = m["content"].as_str() {
+                Some(s.to_string())
+            } else if let Some(arr) = m["content"].as_array() {
+                // 提取文本内容
+                Some(
+                    arr.iter()
+                        .filter_map(|c| {
+                            if c["type"].as_str() == Some("text") {
+                                c["text"].as_str().map(String::from)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<_>>()
+                        .join("\n"),
+                )
+            } else {
+                None
+            }
+        })
+        .unwrap_or_default();
+
+    // 提取图片
+    let images = last_user_message
+        .map(|m| extract_images_from_content(&m["content"]))
+        .filter(|imgs| !imgs.is_empty());
 
     // 提取系统提示
     let system_prompt = request["system"].as_str().map(String::from);
@@ -135,6 +199,7 @@ pub fn convert_anthropic_to_codewhisperer(
                 user_input_message: UserInputMessage {
                     content,
                     user_input_message_context: None,
+                    images,
                 },
             },
             chat_trigger_type: "MANUAL".to_string(),
@@ -192,5 +257,84 @@ mod tests {
 
         assert!(result.profile_arn.is_some());
         assert!(result.assistant_response_config.response_style.is_some());
+    }
+
+    #[test]
+    fn test_convert_with_image() {
+        let request = serde_json::json!({
+            "model": "claude-sonnet-4-5-20250514",
+            "max_tokens": 1024,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": "What's in this image?"},
+                        {
+                            "type": "image",
+                            "source": {
+                                "type": "base64",
+                                "media_type": "image/jpeg",
+                                "data": "dGVzdF9pbWFnZV9kYXRh"
+                            }
+                        }
+                    ]
+                }
+            ]
+        });
+
+        let result = convert_anthropic_to_codewhisperer(&request, None);
+
+        assert_eq!(
+            result.conversation_state.current_message.user_input_message.content,
+            "What's in this image?"
+        );
+
+        let images = result.conversation_state.current_message.user_input_message.images;
+        assert!(images.is_some());
+        let images = images.unwrap();
+        assert_eq!(images.len(), 1);
+        assert_eq!(images[0].format, "jpeg");
+        assert_eq!(images[0].source.bytes, "dGVzdF9pbWFnZV9kYXRh");
+    }
+
+    #[test]
+    fn test_convert_with_multiple_images() {
+        let request = serde_json::json!({
+            "model": "claude-sonnet-4-5-20250514",
+            "max_tokens": 1024,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": "Compare these images"},
+                        {
+                            "type": "image",
+                            "source": {
+                                "type": "base64",
+                                "media_type": "image/png",
+                                "data": "aW1hZ2UxX2RhdGE="
+                            }
+                        },
+                        {
+                            "type": "image",
+                            "source": {
+                                "type": "base64",
+                                "media_type": "image/jpeg",
+                                "data": "aW1hZ2UyX2RhdGE="
+                            }
+                        }
+                    ]
+                }
+            ]
+        });
+
+        let result = convert_anthropic_to_codewhisperer(&request, None);
+
+        let images = result.conversation_state.current_message.user_input_message.images;
+        assert!(images.is_some());
+        let images = images.unwrap();
+        assert_eq!(images.len(), 2);
+        assert_eq!(images[0].format, "png");
+        assert_eq!(images[1].format, "jpeg");
     }
 }
